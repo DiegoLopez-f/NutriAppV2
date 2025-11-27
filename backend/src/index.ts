@@ -1,12 +1,11 @@
-// 1. Importaciones (sintaxis de TypeScript)
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import admin from 'firebase-admin';
 
+
 // 2. Importar la llave de Firebase
 import serviceAccount from '../serviceAccountKey.json';
 
-// --- Añade esta sección para extender los tipos de Express ---
 declare global {
     namespace Express {
         interface Request {
@@ -14,7 +13,6 @@ declare global {
         }
     }
 }
-// --- Fin de la sección ---
 
 // 3. Inicializar Firebase Admin
 admin.initializeApp({
@@ -34,6 +32,7 @@ const db = admin.firestore();
 
 // 7. Importar la lógica del Plan (el archivo que ya creamos)
 import { PlanPayload, calcularMacrosPlan } from './plan-utils';
+import * as https from "node:https";
 
 // --- Middleware de Autenticación (El Guardia) ---
 async function verifyFirebaseToken(req: Request, res: Response, next: NextFunction) {
@@ -59,6 +58,86 @@ async function verifyFirebaseToken(req: Request, res: Response, next: NextFuncti
 }
 
 // --- === ENDPOINTS DE LA API === ---
+
+// --- REGISTRAR USUARIO CON ESTRUCTURA CORRECTA ---
+app.post('/api/usuarios', verifyFirebaseToken, async (req: Request, res: Response) => {
+    try {
+        const { uid, email, nombre, tipo, perfil_nutricional } = req.body;
+
+        if (!uid || !email) {
+            return res.status(400).send({ message: 'Faltan datos obligatorios (uid, email).' });
+        }
+
+        // Estructura base según el JSON
+        const usuarioBase: any = {
+            uid,
+            email,
+            nombre: nombre || email.split('@')[0],
+            tipo: tipo || 2, // Por defecto Paciente (2)
+            creadoEn: admin.firestore.FieldValue.serverTimestamp(),
+        };
+
+        // Si es Paciente (Tipo 2)
+        if (tipo === 2) {
+            usuarioBase.perfil_nutricional = {
+                altura: perfil_nutricional?.altura || 0,
+                peso: perfil_nutricional?.peso || 0,
+                objetivo: perfil_nutricional?.objetivo || "",
+                alergias: perfil_nutricional?.alergias || [],
+                restricciones: perfil_nutricional?.restricciones || []
+            };
+        }
+        // Si es Nutricionista (Tipo 1)
+        else if (tipo === 1) {
+            usuarioBase.pacientes = []; // Array vacío para asignar pacientes después
+            // También puede tener perfil nutricional propio
+            usuarioBase.perfil_nutricional = perfil_nutricional || {};
+        }
+
+        // Guardar en Firestore con la estructura limpia
+        await db.collection('usuarios').doc(uid).set(usuarioBase, { merge: true });
+
+        console.log(`Usuario registrado: ${email} (Tipo ${tipo})`);
+        res.status(201).send({ message: 'Usuario registrado correctamente', usuario: usuarioBase });
+
+    } catch (error) {
+        console.error('Error al registrar usuario:', error);
+        res.status(500).send({ message: 'Error interno al registrar usuario.' });
+    }
+});
+
+// --- OBTENER PACIENTES (PARA DASHBOARD NUTRICIONISTA) ---
+app.get('/api/nutricionista/pacientes', verifyFirebaseToken, async (req: Request, res: Response) => {
+    try {
+        // Validamos que quien pide esto sea un Nutricionista (Opcional: verificar en BD su tipo)
+        // Por ahora confiamos en que el frontend separa roles, o podrías hacer una consulta extra aquí.
+
+        const snapshot = await db.collection('usuarios')
+            .where('tipo', '==', 2) // Solo traemos pacientes
+            .get();
+
+        if (snapshot.empty) {
+            return res.status(200).send([]);
+        }
+
+        const pacientes = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                uid: doc.id, // Importante devolver el ID para asignar planes después
+                nombre: data.nombre,
+                email: data.email,
+                tipo: data.tipo,
+                perfil_nutricional: data.perfil_nutricional || {}
+            };
+        });
+
+        res.status(200).send(pacientes);
+
+    } catch (error) {
+        console.error('Error obteniendo pacientes:', error);
+        res.status(500).send({ message: 'Error al obtener la lista de pacientes.' });
+    }
+});
 
 // ... (endpoints /api/test, /api/protegido, /api/alimentos) ...
 app.get('/api/test', (req: Request, res: Response) => {
@@ -132,9 +211,7 @@ app.get('/api/planes/asignados', verifyFirebaseToken, async (req: Request, res: 
 });
 
 
-// ... (endpoint GET /api/planes/asignados) ...
-
-// --- ¡¡ENDPOINT POST MEJORADO!! (Acepta descripcion y objetivo) ---
+// --- POST PLANES (Acepta descripcion y objetivo) ---
 app.post('/api/planes', verifyFirebaseToken, async (req: Request, res: Response) => {
     try {
         const nutricionistaUid = req.user?.uid;
@@ -197,23 +274,41 @@ app.post('/api/planes', verifyFirebaseToken, async (req: Request, res: Response)
     }
 });
 
-// ... (endpoint DELETE /api/planes/:planId) ...
 
-// ... (endpoint DELETE /api/planes/:planId) ...
+// --- ELIMINAR PLAN (Paciente o Nutricionista) ---
 app.delete('/api/planes/:planId', verifyFirebaseToken, async (req: Request, res: Response) => {
     try {
-        const uid = req.user?.uid;
+        // 1. Validar Plan ID
         const { planId } = req.params;
+        if (!planId) {
+            return res.status(400).send({ message: 'Falta el ID del plan.' });
+        }
 
-        if (!uid) {
+        // 2. Validar Usuario solicitante
+        const requesterUid = req.user?.uid;
+        if (!requesterUid) {
             return res.status(403).send({ message: 'Usuario no válido.' });
         }
-        if (!planId) {
-            return res.status(400).send({ message: 'Se requiere un ID de plan.' });
+
+        // 3. Determinar de quién borramos (targetUid)
+        // Inicializamos targetUid con el ID del solicitante (por defecto borra lo suyo)
+        let targetUid: string = requesterUid;
+
+        // Verificamos si viene un pacienteId válido en la URL (query param)
+        // Express puede devolver string, array o undefined, así que forzamos la verificación.
+        const queryPacienteId = req.query.pacienteId;
+
+        if (queryPacienteId && typeof queryPacienteId === 'string') {
+            console.log(`Nutricionista ${requesterUid} eliminando plan de ${queryPacienteId}`);
+            targetUid = queryPacienteId;
+        } else {
+            console.log(`Usuario ${requesterUid} eliminando su propio plan`);
         }
 
-        await db.collection('usuarios').doc(uid).collection('planes').doc(planId).delete();
-        res.status(200).send({ message: 'Plan eliminado exitosamente' });
+        // 4. Ejecutar el borrado (Ahora targetUid y planId son 100% string)
+        await db.collection('usuarios').doc(targetUid).collection('planes').doc(planId).delete();
+
+        res.status(200).send({ message: 'Plan eliminado exitosamente.' });
 
     } catch (error) {
         console.error('Error al eliminar el plan:', error);
@@ -221,12 +316,7 @@ app.delete('/api/planes/:planId', verifyFirebaseToken, async (req: Request, res:
     }
 });
 
-// --- ¡¡ENDPOINT GET /api/perfil CORREGIDO!! ---
-/**
- * Endpoint para OBTENER el perfil de usuario (peso, altura, etc.)
- * del usuario logueado.
- * CONVIERTE Timestamps a Longs.
- */
+// --- GET /api/perfil ---
 app.get('/api/perfil', verifyFirebaseToken, async (req: Request, res: Response) => {
     try {
         const uid = req.user?.uid;
@@ -288,7 +378,6 @@ app.get('/api/perfil', verifyFirebaseToken, async (req: Request, res: Response) 
                 actualizadoEnLong = Date.now(); // Fallback
             }
 
-            // Devolvemos el objeto de usuario con Longs, no Timestamps
             return res.status(200).send({
                 ...userData, // Todos los demás campos (uid, nombre, email, etc.)
                 creadoEn: creadoEnLong,
@@ -302,14 +391,7 @@ app.get('/api/perfil', verifyFirebaseToken, async (req: Request, res: Response) 
     }
 });
 
-
-// ... (después de tu endpoint GET /api/perfil) ...
-
-// --- ¡¡NUEVO ENDPOINT!! ---
-/**
- * Endpoint para ACTUALIZAR el perfil del usuario logueado.
- * Usado por DatosInicialesScreen.
- */
+ // Endpoint para ACTUALIZAR el perfil del usuario logueado.
 app.put('/api/perfil', verifyFirebaseToken, async (req: Request, res: Response) => {
     try {
         const uid = req.user?.uid;
@@ -344,7 +426,38 @@ app.put('/api/perfil', verifyFirebaseToken, async (req: Request, res: Response) 
     }
 });
 
-// ... (El resto de tus endpoints y 'app.listen')
+// --- OBTENER TODOS LOS PLANES (Vista Global Nutricionista) ---
+app.get('/api/nutricionista/todos-los-planes', verifyFirebaseToken, async (req: Request, res: Response) => {
+    try {
+        // "collectionGroup" busca en TODAS las colecciones que se llamen 'planes',
+        // sin importar dentro de qué usuario estén.
+        const planesSnapshot = await db.collectionGroup('planes').get();
+
+        const planes = planesSnapshot.docs.map(doc => {
+            const data = doc.data();
+
+            // Truco: Como es collectionGroup, el 'ref' nos dice de quién es.
+            // doc.ref.parent.parent?.id nos da el ID del usuario dueño del plan.
+            const pacienteId = doc.ref.parent.parent?.id || 'Desconocido';
+
+            return {
+                id: doc.id,
+                pacienteId: pacienteId, // Para saber de quién es
+                nombre: data.nombre,
+                descripcion: data.descripcion,
+                // Convertir fecha si existe
+                fecha_asignacion: data.fecha_asignacion?.toMillis?.() || data.fecha_asignacion,
+                versiones: data.versiones || {}
+            };
+        });
+
+        res.status(200).send(planes);
+
+    } catch (error) {
+        console.error('Error al obtener todos los planes:', error);
+        res.status(500).send({ message: 'Error al cargar los planes globales.' });
+    }
+});
 
 
 // 8. Iniciar el servidor

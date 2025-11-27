@@ -6,34 +6,29 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { api } from '@/lib/api';
 
-// Importamos los Dashboards (asegúrate de que las rutas sean correctas)
 import DashboardPaciente from '@/components/paciente/Dashboard';
-import DashboardNutricionista from '@/components/nutricionista/Dashboard'; // Lo mantenemos aunque sea placeholder por ahora
+import DashboardNutricionista from '@/components/nutricionista/Dashboard';
 
 export default function Home() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
-    const [user, setUser] = useState<any>(null);
     const [perfil, setPerfil] = useState<any>(null);
 
     useEffect(() => {
-        // Escuchamos el estado de autenticación de Firebase
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             if (!currentUser) {
-                // Si no hay usuario, mandamos al login
-                router.push('/Login');
+                // Estado público: Muestra landing o redirige a login
+                // Por ahora redirigimos al login si no es pública
+                // router.push('/Login');
+                setLoading(false);
                 return;
             }
 
-            setUser(currentUser);
-
             try {
-                // Si hay usuario, pedimos su perfil a TU BACKEND
                 const dataPerfil = await api.getPerfil();
                 setPerfil(dataPerfil);
             } catch (error) {
                 console.error("Error cargando perfil:", error);
-                // Si falla el perfil, podrías mostrar un error o reintentar
             } finally {
                 setLoading(false);
             }
@@ -46,23 +41,35 @@ export default function Home() {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
-                <p className="mt-4 text-gray-500 font-medium">Cargando tu experiencia NutriApp...</p>
             </div>
         );
     }
 
     if (!perfil) {
-        return <div className="p-10 text-center">Error al cargar tu perfil. Intenta recargar.</div>;
+        // Usuario no autenticado (Landing Page simple)
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-white">
+                <h1 className="text-4xl font-bold text-green-700 mb-4">Bienvenido a NutriApp</h1>
+                <p className="text-gray-500 mb-8 text-center max-w-md">
+                    Tu plataforma integral para el seguimiento nutricional y farmacias de turno.
+                </p>
+                <div className="flex gap-4">
+                    <button onClick={() => router.push('/Login')} className="px-6 py-3 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition">
+                        Iniciar Sesión
+                    </button>
+                    <button onClick={() => router.push('/registro')} className="px-6 py-3 border border-green-600 text-green-600 rounded-lg font-bold hover:bg-green-50 transition">
+                        Registrarse
+                    </button>
+                </div>
+            </div>
+        );
     }
 
-    // LÓGICA DE ROLES
-    // Asumimos: 1 = Nutricionista, 2 = Paciente (según tu código anterior)
-    // Si tu backend no devuelve 'tipo', tendrás que agregarlo a tu modelo de usuario en backend.
+    // Usuario Autenticado: Redirección por Rol
+    // 1 = Nutricionista, 2 = Paciente
     if (perfil.tipo === 1) {
         return <DashboardNutricionista />;
     } else {
-        // Por defecto o si es tipo 2, mostramos el de Paciente
-        // Pasamos el perfil ya cargado para no pedirlo dos veces
         return <DashboardPaciente perfilInicial={perfil} />;
     }
 }

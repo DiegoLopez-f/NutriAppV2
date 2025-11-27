@@ -17,9 +17,8 @@ const mockedFetch = global.fetch as jest.Mock;
 // @ts-ignore
 const mockedGetToken = auth.currentUser.getIdToken as jest.Mock;
 
-// ----------------------------------------------------------------------
-// 2. SUITE DE PRUEBAS
-// ----------------------------------------------------------------------
+
+//  SUITE DE PRUEBAS
 
 describe('Cliente API (api.ts)', () => {
 

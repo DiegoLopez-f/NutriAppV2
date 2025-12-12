@@ -17,7 +17,7 @@ class HomeRepository {
         }
     }
 
-    // --- NUEVO: Función para obtener el plan más reciente ---
+    // --- Función para obtener el plan más reciente ---
     suspend fun obtenerPlanActivo(): Plan? {
         return try {
             val planes = api.getMisPlanes()
@@ -36,6 +36,17 @@ class HomeRepository {
         } catch (e: Exception) {
             e.printStackTrace()
             null
+        }
+    }
+
+    // 👇 AGREGA ESTO AQUÍ (Paso 2) 👇
+    // Obtener lista de pacientes para el dashboard del nutricionista
+    suspend fun obtenerPacientes(): List<Usuario> {
+        return try {
+            api.getPacientes()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
         }
     }
 }

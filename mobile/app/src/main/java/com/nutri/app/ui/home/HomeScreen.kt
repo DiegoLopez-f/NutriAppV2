@@ -1,6 +1,5 @@
 package com.nutri.app.ui.home
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -9,11 +8,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nutri.app.data.model.Plan
+import com.nutri.app.data.model.Usuario
 import com.nutri.app.viewmodel.HomeViewModel
 
 @Composable
@@ -22,10 +21,15 @@ fun HomeScreen(
     onVerPlanes: () -> Unit,
     viewModel: HomeViewModel = viewModel()
 ) {
+    // Estados generales
     val usuario by viewModel.usuario.collectAsState()
     val planActivo by viewModel.planActivo.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.errorMessage.collectAsState()
+
+    // Estados específicos para Nutricionista (nuevos)
+    val pacientes by viewModel.pacientes.collectAsState()
+    val busqueda by viewModel.busqueda.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.cargarDatosUsuario()
@@ -36,7 +40,9 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(24.dp)
+            // NOTA: Quitamos el padding global (24.dp) aquí para que el dashboard
+            // de nutricionista pueda usar el ancho completo si lo necesita.
+            // Se lo agregamos internamente a cada Dashboard.
         ) {
             when {
                 isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -48,55 +54,26 @@ fun HomeScreen(
                 )
 
                 usuario != null -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .verticalScroll(rememberScrollState()),
-                        horizontalAlignment = Alignment.Start
-                    ) {
-                        // 1. Encabezado de Bienvenida
-                        Text(
-                            text = "Hola,",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = usuario!!.nombre,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-
-                        Spacer(modifier = Modifier.height(32.dp))
-
-                        // 2. Sección de Plan Activo
-                        Text(
-                            text = "Tu Plan Actual",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(bottom = 16.dp)
-                        )
-
-                        if (planActivo != null) {
-                            PlanActivoCard(plan = planActivo!!)
-                        } else {
-                            // Tarjeta vacía si no tiene plan
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(24.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Text("Aún no tienes un plan asignado.")
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Button(onClick = onVerPlanes) {
-                                        Text("Ir a Planes")
-                                    }
-                                }
+                    // --- LÓGICA DE ROLES ---
+                    if (usuario!!.tipo == 1) {
+                        // VISTA DE NUTRICIONISTA
+                        // (Asegúrate de haber creado el archivo DashboardNutricionista.kt en el Paso 4)
+                        DashboardNutricionista(
+                            usuario = usuario!!,
+                            pacientes = pacientes,
+                            busqueda = busqueda,
+                            onBusquedaChange = { viewModel.setBusqueda(it) },
+                            onVerDetallePaciente = { uid ->
+                                // Aquí podrías navegar al detalle del paciente
                             }
-                        }
+                        )
+                    } else {
+                        // VISTA DE PACIENTE
+                        DashboardPaciente(
+                            usuario = usuario!!,
+                            planActivo = planActivo,
+                            onVerPlanes = onVerPlanes
+                        )
                     }
                 }
             }
@@ -104,21 +81,82 @@ fun HomeScreen(
     }
 }
 
+// --- COMPONENTE EXTRAÍDO: VISTA DEL PACIENTE ---
+// (Este es el código que tenías antes, encapsulado para mantener el orden)
+@Composable
+fun DashboardPaciente(
+    usuario: Usuario,
+    planActivo: Plan?,
+    onVerPlanes: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(24.dp) // Aquí recuperamos el padding
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.Start
+    ) {
+        // 1. Encabezado de Bienvenida
+        Text(
+            text = "Hola,",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = usuario.nombre,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // 2. Sección de Plan Activo
+        Text(
+            text = "Tu Plan Actual",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        if (planActivo != null) {
+            PlanActivoCard(plan = planActivo)
+        } else {
+            // Tarjeta vacía si no tiene plan
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("Aún no tienes un plan asignado.")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(onClick = onVerPlanes) {
+                        Text("Ir a Planes")
+                    }
+                }
+            }
+        }
+    }
+}
+
+// --- COMPONENTES VISUALES DEL PLAN (Sin cambios) ---
+
 @Composable
 fun PlanActivoCard(plan: Plan) {
-    // Obtenemos la primera versión del mapa (generalmente la única activa)
     val version = plan.versiones.values.firstOrNull()
     val macros = version?.totalesDiarios ?: emptyMap()
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // Color blanco/surface para destacar
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(
             modifier = Modifier.padding(20.dp)
         ) {
-            // Título del Plan y Tipo
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -129,7 +167,6 @@ fun PlanActivoCard(plan: Plan) {
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
-                // Badge del tipo de plan
                 Surface(
                     color = MaterialTheme.colorScheme.primaryContainer,
                     shape = RoundedCornerShape(16.dp)
@@ -145,7 +182,6 @@ fun PlanActivoCard(plan: Plan) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Objetivo (si existe)
             if (!version?.objetivo.isNullOrBlank()) {
                 Text(
                     text = "Objetivo: ${version?.objetivo}",
@@ -158,31 +194,14 @@ fun PlanActivoCard(plan: Plan) {
             Divider(color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(modifier = Modifier.height(16.dp))
 
-            // MACROS PRINCIPALES
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                MacroItem(
-                    label = "Calorías",
-                    valor = "${macros["kcal"]?.toInt() ?: 0}",
-                    unidad = "kcal"
-                )
-                MacroItem(
-                    label = "Proteína",
-                    valor = "${macros["proteinas"]?.toInt() ?: 0}",
-                    unidad = "g"
-                )
-                MacroItem(
-                    label = "Carbohidratos",
-                    valor = "${macros["carbohidratos"]?.toInt() ?: 0}",
-                    unidad = "g"
-                )
-                MacroItem(
-                    label = "Grasas",
-                    valor = "${macros["grasas"]?.toInt() ?: 0}",
-                    unidad = "g"
-                )
+                MacroItem("Calorías", "${macros["kcal"]?.toInt() ?: 0}", "kcal")
+                MacroItem("Proteína", "${macros["proteinas"]?.toInt() ?: 0}", "g")
+                MacroItem("Carbos", "${macros["carbohidratos"]?.toInt() ?: 0}", "g") // Abreviado para móvil
+                MacroItem("Grasas", "${macros["grasas"]?.toInt() ?: 0}", "g")
             }
         }
     }

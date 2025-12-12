@@ -471,6 +471,73 @@ app.get('/api/nutricionista/todos-los-planes', verifyFirebaseToken, async (req: 
     }
 });
 
+// --- OBTENER PACIENTES (PARA DASHBOARD NUTRICIONISTA) ---
+app.get('/api/nutricionista/pacientes', verifyFirebaseToken, async (req: Request, res: Response) => {
+    const requesterUid = req.user?.uid;
+
+    try {
+        if (!requesterUid) {
+            return res.status(403).send({ message: 'Usuario (Nutricionista) no válido.' });
+        }
+
+        // 1. Obtener el documento del Nutricionista para obtener sus referencias de pacientes
+        const nutriDoc = await db.collection('usuarios').doc(requesterUid).get();
+        const nutriData = nutriDoc.data();
+
+        if (!nutriDoc.exists || nutriData?.tipo !== 1) {
+            console.log(`Acceso denegado a lista de pacientes para UID: ${requesterUid}`);
+            // Devolvemos lista vacía si no es nutricionista o no existe
+            return res.status(200).send([]);
+        }
+
+        // 2. Extraer la lista de referencias de pacientes
+        // Asumimos que la estructura es: { pacientes: [{ pacienteId: 'email' }, ...] }
+        const pacientesReferencias: Array<{ pacienteId: string }> = nutriData.pacientes || [];
+
+        // Mapear a una lista simple de los identificadores (ej: emails)
+        const pacienteIds = pacientesReferencias
+            .map(ref => ref.pacienteId)
+            .filter(id => id); // Filtrar IDs vacíos
+
+        if (pacienteIds.length === 0) {
+            return res.status(200).send([]);
+        }
+
+        // 3. Consultar los documentos completos de los pacientes
+        const BATCH_SIZE = 10;
+        let pacientesCompletos: any[] = [];
+
+        // Firestore solo permite 10 elementos en la consulta 'in', así que iteramos en lotes.
+        for (let i = 0; i < pacienteIds.length; i += BATCH_SIZE) {
+            const batchIds = pacienteIds.slice(i, i + BATCH_SIZE);
+
+            // Usamos 'email' como campo de búsqueda, ya que tu modelo de datos usa el email en pacienteId.
+            const snapshot = await db.collection('usuarios')
+                .where('email', 'in', batchIds)
+                .where('tipo', '==', 2) // Filtro adicional de seguridad
+                .get();
+
+            snapshot.docs.forEach(doc => {
+                const data = doc.data();
+                // Construimos el objeto que espera la app móvil (data class Usuario)
+                pacientesCompletos.push({
+                    uid: doc.id, // UID real del documento, necesario para la app
+                    nombre: data.nombre,
+                    email: data.email,
+                    tipo: data.tipo,
+                    perfil_nutricional: data.perfil_nutricional || {}
+                });
+            });
+        }
+        
+        // 4. Devolver la lista completa de objetos Usuario (pacientes)
+        res.status(200).send(pacientesCompletos);
+
+    } catch (error) {
+        console.error('Error obteniendo pacientes:', error);
+        res.status(500).send({ message: 'Error al obtener la lista de pacientes.' });
+    }
+});
 
 // 8. Iniciar el servidor
 app.listen(port, () => {

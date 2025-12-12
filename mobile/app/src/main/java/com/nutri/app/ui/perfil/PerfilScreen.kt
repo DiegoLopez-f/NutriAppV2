@@ -1,15 +1,19 @@
 package com.nutri.app.ui.perfil
 
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -49,7 +53,7 @@ fun PerfilScreen(
     LaunchedEffect(usuario) {
         usuario?.let { u ->
             nombre = u.nombre
-            // CAMBIO: Leemos desde perfil_nutricional
+            // Leemos desde perfil_nutricional
             peso = u.perfil_nutricional?.peso?.toString() ?: ""
             altura = u.perfil_nutricional?.altura?.toString() ?: ""
             objetivo = u.perfil_nutricional?.objetivo ?: ""
@@ -91,7 +95,7 @@ fun PerfilScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Tarjeta Principal
+                // Tarjeta Principal de Información
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -112,11 +116,10 @@ fun PerfilScreen(
                             )
 
                             IconButton(onClick = {
-                                // Si cancelamos la edición (estábamos en true), restauramos los valores originales
+                                // Si cancelamos la edición, restauramos los valores originales
                                 if (isEditing) {
                                     usuario?.let { u ->
                                         nombre = u.nombre
-                                        // CORRECCIÓN: Accedemos a través de perfil_nutricional
                                         peso = u.perfil_nutricional?.peso?.toString() ?: ""
                                         altura = u.perfil_nutricional?.altura?.toString() ?: ""
                                         objetivo = u.perfil_nutricional?.objetivo ?: ""
@@ -135,7 +138,7 @@ fun PerfilScreen(
 
                         Divider(modifier = Modifier.padding(vertical = 12.dp))
 
-                        // AQUI ESTÁ LA MAGIA: Alternamos entre VISTA y EDICIÓN
+                        // Lógica: Alternamos entre VISTA y EDICIÓN
                         if (isEditing) {
                             // --- MODO EDICIÓN (Campos de Texto) ---
                             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -181,16 +184,13 @@ fun PerfilScreen(
 
                                 Row(modifier = Modifier.fillMaxWidth()) {
                                     Box(modifier = Modifier.weight(1f)) {
-                                        // CAMBIO: Referencias actualizadas
                                         DatoItem(titulo = "Peso", valor = "${usuario?.perfil_nutricional?.peso ?: "-"} kg")
                                     }
                                     Box(modifier = Modifier.weight(1f)) {
-                                        // CAMBIO: Referencias actualizadas
                                         DatoItem(titulo = "Altura", valor = "${usuario?.perfil_nutricional?.altura ?: "-"} cm")
                                     }
                                 }
 
-                                // CAMBIO: Referencia actualizada
                                 DatoItem(titulo = "Objetivo", valor = usuario?.perfil_nutricional?.objetivo ?: "Sin definir")
 
                                 DatoItem(titulo = "Email", valor = usuario?.email ?: "")
@@ -216,7 +216,9 @@ fun PerfilScreen(
                                 }
                             )
                         },
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
                         enabled = !isLoading
                     ) {
                         if (isLoading) {
@@ -228,12 +230,33 @@ fun PerfilScreen(
                         }
                     }
                 }
+
+                // ==========================================
+                //       SECCIÓN CENTRO DE AYUDA
+                // ==========================================
+                Spacer(modifier = Modifier.height(32.dp))
+
+                Text(
+                    text = "Centro de Ayuda",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.align(Alignment.Start)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Llamada a la función del teléfono
+                TarjetaContacto(
+                    nombre = "Soporte NutriApp",
+                    numero = "+56912345678" // <--- Aquí editas el número real
+                )
+
+                Spacer(modifier = Modifier.height(32.dp)) // Espacio final extra para scroll
             }
         }
     }
 }
 
-// Componente auxiliar para mostrar los datos bonitos en modo lectura
+// Componente auxiliar para mostrar los datos
 @Composable
 fun DatoItem(titulo: String, valor: String) {
     Column {
@@ -248,5 +271,47 @@ fun DatoItem(titulo: String, valor: String) {
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Medium
         )
+    }
+}
+
+// Componente auxiliar para la tarjeta de llamada
+@Composable
+fun TarjetaContacto(nombre: String, numero: String) {
+    val context = LocalContext.current
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                val intent = Intent(Intent.ACTION_DIAL).apply {
+                    data = Uri.parse("tel:$numero")
+                }
+                context.startActivity(intent)
+            },
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Phone,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(32.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(text = nombre, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = numero,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }

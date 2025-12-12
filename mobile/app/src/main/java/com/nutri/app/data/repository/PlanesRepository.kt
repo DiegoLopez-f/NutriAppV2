@@ -1,14 +1,14 @@
 package com.nutri.app.data.repository
 
-// Imports NUEVOS
 import com.nutri.app.data.ApiService
 import com.nutri.app.data.RetrofitClient
-import com.nutri.app.data.model.Alimento // Asegúrate de importar Alimento
-import com.nutri.app.data.model.AlimentoPayload // ¡¡NUEVO!!
+import com.nutri.app.data.model.Alimento
+import com.nutri.app.data.model.AlimentoPayload
 import com.nutri.app.data.model.Comida
-import com.nutri.app.data.model.ComidaPayload // ¡¡NUEVO!!
+import com.nutri.app.data.model.ComidaPayload
 import com.nutri.app.data.model.Plan
-import com.nutri.app.data.model.PlanPayload // ¡¡NUEVO!!
+import com.nutri.app.data.model.PlanPayload
+import com.nutri.app.data.model.Usuario
 
 class PlanesRepository {
 
@@ -23,6 +23,15 @@ class PlanesRepository {
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList() // Devuelve lista vacía en caso de error de red
+        }
+    }
+
+    suspend fun obtenerUsuario(): Usuario? {
+        return try {
+            api.getMiPerfil()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
         }
     }
 

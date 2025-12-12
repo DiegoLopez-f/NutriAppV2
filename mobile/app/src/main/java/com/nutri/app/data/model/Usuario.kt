@@ -1,5 +1,9 @@
 package com.nutri.app.data.model
 
+object RolUsuario {
+    const val PACIENTE = 0
+    const val NUTRICIONISTA = 1
+}
 data class Usuario(
     val uid: String,
     val nombre: String,

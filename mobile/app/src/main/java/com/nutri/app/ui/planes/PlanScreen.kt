@@ -24,6 +24,7 @@ fun PlanScreen(
     val planes by viewModel.planes.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val isNutricionista by viewModel.isNutricionista.collectAsState()
 
 
     LaunchedEffect(Unit) {
@@ -33,10 +34,13 @@ fun PlanScreen(
     Scaffold(
         topBar = { TopAppBar(title = { Text("Mis Planes") }) },
         floatingActionButton = {
-            FloatingActionButton(onClick = {
-                navController.navigate("crearPlan")
-            }) {
-                Icon(Icons.Default.Add, contentDescription = "Crear Plan")
+            // **CONDICIÓN 1: Solo mostrar FAB si es Nutricionista**
+            if (isNutricionista) {
+                FloatingActionButton(onClick = {
+                    navController.navigate("crearPlan")
+                }) {
+                    Icon(Icons.Default.Add, contentDescription = "Crear Plan")
+                }
             }
         }
     ) { padding ->
@@ -66,17 +70,18 @@ fun PlanScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(planes) { plan ->
-                    // Plancard envuelto en un box para usar boton eliminar
                     Box {
                         PlanCard(plan) {
                             navController.navigate("planDetalle/${plan.id}")
                         }
                         // Botón de eliminar
-                        IconButton(
-                            onClick = { viewModel.eliminarPlan(plan.id) },
-                            modifier = Modifier.align(Alignment.TopEnd)
-                        ) {
-                            Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
+                        if (isNutricionista) {
+                            IconButton(
+                                onClick = { viewModel.eliminarPlan(plan.id) },
+                                modifier = Modifier.align(Alignment.TopEnd)
+                            ) {
+                                Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
+                            }
                         }
                     }
                 }

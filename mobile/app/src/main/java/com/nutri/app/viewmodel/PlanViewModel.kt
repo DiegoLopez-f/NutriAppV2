@@ -18,6 +18,9 @@ class PlanViewModel(private val repository: PlanesRepository = PlanesRepository(
     private val _planes = MutableStateFlow<List<Plan>>(emptyList())
     val planes: StateFlow<List<Plan>> = _planes
 
+    private val _isNutricionista = MutableStateFlow(false)
+    val isNutricionista: StateFlow<Boolean> = _isNutricionista
+
     // Estados para PlanDetalleScreen
     private val _planSeleccionado = MutableStateFlow<Plan?>(null)
     val planSeleccionado: StateFlow<Plan?> = _planSeleccionado
@@ -33,17 +36,27 @@ class PlanViewModel(private val repository: PlanesRepository = PlanesRepository(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage
 
-    // Cargar planes
     fun cargarPlanes() {
         Log.d("PlanViewModel", "cargarPlanes llamado")
         viewModelScope.launch {
             _isLoading.value = true
             try {
+                // 1. Primero averiguamos quién es el usuario
+                val usuario = repository.obtenerUsuario()
+
+                // Si tienes la clase RolUsuario creada en el paso anterior usa: RolUsuario.NUTRICIONISTA
+                // Si no, usa directamente el 1.
+                _isNutricionista.value = (usuario?.tipo == 1)
+
+                Log.d("PlanViewModel", "Usuario tipo: ${usuario?.tipo}, esNutri: ${_isNutricionista.value}")
+
+                // 2. Cargamos los planes
                 _planes.value = repository.obtenerPlanes()
                 _errorMessage.value = null
+
             } catch (e: Exception) {
                 _errorMessage.value = e.message
-                Log.e("PlanViewModel", "Error al cargar planes", e)
+                Log.e("PlanViewModel", "Error al cargar planes o usuario", e)
             } finally {
                 _isLoading.value = false
             }

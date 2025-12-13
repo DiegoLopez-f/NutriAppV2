@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import android.util.Log
+import com.nutri.app.data.model.Usuario
 
 class PlanViewModel(private val repository: PlanesRepository = PlanesRepository()) : ViewModel() {
 
@@ -35,6 +36,9 @@ class PlanViewModel(private val repository: PlanesRepository = PlanesRepository(
 
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage
+
+    private val _pacientes = MutableStateFlow<List<Usuario>>(emptyList())
+    val pacientes: StateFlow<List<Usuario>> = _pacientes
 
     fun cargarPlanes() {
         Log.d("PlanViewModel", "cargarPlanes llamado")
@@ -119,11 +123,25 @@ class PlanViewModel(private val repository: PlanesRepository = PlanesRepository(
             }
         }
     }
+    fun cargarPacientes() {
+        viewModelScope.launch {
+            try {
+                // Eliminamos la comprobación if (_isNutricionista.value)
+                // para asegurar que intente cargar siempre que se llame.
+                val listaPacientes = repository.obtenerPacientes()
+                _pacientes.value = listaPacientes
+                Log.d("PlanViewModel", "Pacientes cargados: ${listaPacientes.size}")
+            } catch (e: Exception) {
+                Log.e("PlanViewModel", "Error cargando pacientes", e)
+            }
+        }
+    }
 
     /**
      * CRUD - CREAR Plan
      */
     fun crearPlanCompleto(
+        pacienteIdSeleccionado: String?, // <--- NUEVO PARÁMETRO
         nombrePlan: String,
         tipoPlan: String,
         descripcionPlan: String,
@@ -134,16 +152,17 @@ class PlanViewModel(private val repository: PlanesRepository = PlanesRepository(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val pacienteId = FirebaseAuth.getInstance().currentUser?.uid
-                    ?: throw Exception("Usuario no autenticado.")
+                // Si me pasan un ID (nutricionista seleccionó paciente), lo uso.
+                // Si es nulo, uso el ID del usuario logueado (caso fallback).
+                val targetId = pacienteIdSeleccionado ?: FirebaseAuth.getInstance().currentUser?.uid
+                ?: throw Exception("Usuario no identificado.")
 
                 if (comidas.isEmpty() || comidas.all { it.alimentos.isEmpty() }) {
                     throw Exception("El plan debe tener al menos un alimento.")
                 }
 
-                // Llamar al repositorio con los datos completos
                 repository.crearPlan(
-                    pacienteId,
+                    targetId, // <--- USAMOS EL ID DECIDIDO
                     nombrePlan,
                     tipoPlan,
                     descripcionPlan,

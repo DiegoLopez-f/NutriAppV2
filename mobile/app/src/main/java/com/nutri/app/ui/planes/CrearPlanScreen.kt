@@ -26,7 +26,9 @@ import androidx.navigation.NavController
 import com.nutri.app.data.model.Alimento
 import com.nutri.app.data.model.AlimentoPlan
 import com.nutri.app.data.model.Comida
+import com.nutri.app.data.model.Usuario
 import com.nutri.app.viewmodel.PlanViewModel
+
 val NOMBRES_COMIDAS = listOf("Desayuno", "Colacion", "Almuerzo", "Cena")
 val OPCIONES_UNIDAD = listOf("g", "ml", "unidad")
 
@@ -51,23 +53,41 @@ fun CrearPlanScreen(
     navController: NavController,
     viewModel: PlanViewModel = viewModel()
 ) {
-    // Estados
+    // Estados Contexto y ViewModel
     val context = LocalContext.current
     val isLoading by viewModel.isLoading.collectAsState()
     val alimentosMaestros by viewModel.alimentosMaestros.collectAsState()
+
+    // Estado Pacientes (Ya no observamos isNutricionista porque asumimos que LO ES)
+    val listaPacientes by viewModel.pacientes.collectAsState()
+
+    // Estados Locales del Formulario
     var planState by remember { mutableStateOf(PlanEnConstruccion()) }
     var formAlimentoState by remember { mutableStateOf(FormularioAlimentoState()) }
 
+    // Estado para el Paciente Seleccionado
+    var pacienteSeleccionado by remember { mutableStateOf<Usuario?>(null) }
+    var expandedPacientes by remember { mutableStateOf(false) }
+
+    // Carga inicial incondicional
     LaunchedEffect(Unit) {
         viewModel.cargarAlimentos()
+        viewModel.cargarPacientes() // Se carga siempre
     }
 
-    // Logica
+    // Logica de Guardado simplificada
     fun onGuardarPlan() {
         if (planState.nombre.isBlank()) {
             Toast.makeText(context, "El plan debe tener un nombre", Toast.LENGTH_SHORT).show()
             return
         }
+
+        // Validación OBLIGATORIA: Debe haber un paciente seleccionado
+        if (pacienteSeleccionado == null) {
+            Toast.makeText(context, "Debes seleccionar un paciente para asignar el plan", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         val comidasParaEnviar: List<Comida> = planState.comidas
             .filter { it.value.isNotEmpty() }
             .map { (nombre, alimentos) ->
@@ -78,11 +98,15 @@ fun CrearPlanScreen(
                     macros = emptyMap()
                 )
             }
+
         if (comidasParaEnviar.isEmpty()) {
             Toast.makeText(context, "El plan debe tener al menos un alimento", Toast.LENGTH_SHORT).show()
             return
         }
+
+        // Llamada al ViewModel
         viewModel.crearPlanCompleto(
+            pacienteIdSeleccionado = pacienteSeleccionado?.uid,
             nombrePlan = planState.nombre,
             tipoPlan = planState.tipo,
             descripcionPlan = planState.descripcion,
@@ -117,7 +141,7 @@ fun CrearPlanScreen(
         formAlimentoState = formAlimentoState.copy(alimentoSeleccionado = null, cantidad = "100", unidad = OPCIONES_UNIDAD[0])
     }
 
-    // ui
+    // UI
     Scaffold(
         topBar = {
             TopAppBar(
@@ -144,6 +168,46 @@ fun CrearPlanScreen(
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(text = "Datos Generales", style = MaterialTheme.typography.titleLarge)
                         Spacer(modifier = Modifier.height(16.dp))
+
+                        // ================== SELECTOR DE PACIENTE (SIEMPRE VISIBLE) ==================
+                        ExposedDropdownMenuBox(
+                            expanded = expandedPacientes,
+                            onExpandedChange = { expandedPacientes = !expandedPacientes }
+                        ) {
+                            OutlinedTextField(
+                                value = pacienteSeleccionado?.nombre ?: "Seleccionar Paciente",
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Asignar a Paciente") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedPacientes) },
+                                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                                modifier = Modifier.fillMaxWidth().menuAnchor()
+                            )
+
+                            ExposedDropdownMenu(
+                                expanded = expandedPacientes,
+                                onDismissRequest = { expandedPacientes = false }
+                            ) {
+                                if (listaPacientes.isEmpty()) {
+                                    DropdownMenuItem(
+                                        text = { Text("No hay pacientes disponibles") },
+                                        onClick = { expandedPacientes = false },
+                                        enabled = false
+                                    )
+                                }
+                                listaPacientes.forEach { paciente ->
+                                    DropdownMenuItem(
+                                        text = { Text(text = paciente.nombre) },
+                                        onClick = {
+                                            pacienteSeleccionado = paciente
+                                            expandedPacientes = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        // ==============================================================================
 
                         // Nombre
                         OutlinedTextField(
@@ -264,8 +328,7 @@ fun CrearPlanScreen(
     }
 }
 
-
-
+// ... (Los componentes AlimentoItem, FormularioAñadirAlimento y SelectorTipoPlan quedan igual)
 @Composable
 fun AlimentoItem(nombre: String, cantidad: String, onEliminar: () -> Unit) {
     Row(

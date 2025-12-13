@@ -25,7 +25,7 @@ import com.nutri.app.ui.planes.PlanDetalleScreen
 import com.nutri.app.ui.planes.PlanScreen
 import com.nutri.app.ui.perfil.PerfilScreen
 
-// 1. Definimos las rutas principales
+// rutas principales
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
     object Home : Screen("home", "Inicio", Icons.Filled.Home)
     object Planes : Screen("planes", "Planes", Icons.Filled.DateRange)
@@ -51,8 +51,6 @@ fun MainAppScreen(
             // Solo mostramos la barra en las pantallas principales
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentRoute = navBackStackEntry?.destination?.route
-
-            // Verificamos si la ruta actual es una de las principales
             val esRutaPrincipal = items.any { it.route == currentRoute }
 
             if (esRutaPrincipal) {
@@ -106,7 +104,7 @@ fun MainAppScreen(
                 )
             }
 
-            // --- PANTALLAS SECUNDARIAS (Sin barra inferior) ---
+            // --- PANTALLAS SECUNDARIAS ---
 
             composable("crearPlan") {
                 CrearPlanScreen(navController = navController)

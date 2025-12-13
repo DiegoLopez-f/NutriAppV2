@@ -100,7 +100,7 @@ class PlanViewModelTest {
         val comidaDummy = Comida(nombre = "Desayuno", alimentos = listOf(mockk(relaxed = true)))
         val listaComidas = listOf(comidaDummy)
 
-        // 1. Mock de crearPlan
+        // Mock de crearPlan
         coEvery {
             repository.crearPlan(
                 pacienteId = "user123",
@@ -112,7 +112,7 @@ class PlanViewModelTest {
             )
         } just Runs
 
-        // 2. Mock de obtenerPlanes (NECESARIO porque el ViewModel recarga la lista al finalizar)
+        // Mock de obtenerPlanes
 
         coEvery { repository.obtenerPlanes() } returns emptyList()
 

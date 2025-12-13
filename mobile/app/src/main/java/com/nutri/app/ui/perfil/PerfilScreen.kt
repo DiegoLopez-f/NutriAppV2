@@ -112,17 +112,14 @@ fun PerfilScreen(
                             )
 
                             IconButton(onClick = {
-                                // Si cancelamos la edición (estábamos en true), restauramos los valores originales
                                 if (isEditing) {
                                     usuario?.let { u ->
                                         nombre = u.nombre
-                                        // CORRECCIÓN: Accedemos a través de perfil_nutricional
                                         peso = u.perfil_nutricional?.peso?.toString() ?: ""
                                         altura = u.perfil_nutricional?.altura?.toString() ?: ""
                                         objetivo = u.perfil_nutricional?.objetivo ?: ""
                                     }
                                 }
-                                // Cambiamos el estado de edición
                                 isEditing = !isEditing
                             }) {
                                 Icon(
@@ -134,10 +131,7 @@ fun PerfilScreen(
                         }
 
                         Divider(modifier = Modifier.padding(vertical = 12.dp))
-
-                        // AQUI ESTÁ LA MAGIA: Alternamos entre VISTA y EDICIÓN
                         if (isEditing) {
-                            // --- MODO EDICIÓN (Campos de Texto) ---
                             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                                 OutlinedTextField(
                                     value = nombre,
@@ -175,22 +169,19 @@ fun PerfilScreen(
                                 )
                             }
                         } else {
-                            // --- MODO LECTURA (Texto limpio) ---
+                            // --- MODO LECTURA ---
                             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                                 DatoItem(titulo = "Nombre", valor = usuario?.nombre ?: "Sin nombre")
 
                                 Row(modifier = Modifier.fillMaxWidth()) {
                                     Box(modifier = Modifier.weight(1f)) {
-                                        // CAMBIO: Referencias actualizadas
                                         DatoItem(titulo = "Peso", valor = "${usuario?.perfil_nutricional?.peso ?: "-"} kg")
                                     }
                                     Box(modifier = Modifier.weight(1f)) {
-                                        // CAMBIO: Referencias actualizadas
                                         DatoItem(titulo = "Altura", valor = "${usuario?.perfil_nutricional?.altura ?: "-"} cm")
                                     }
                                 }
 
-                                // CAMBIO: Referencia actualizada
                                 DatoItem(titulo = "Objetivo", valor = usuario?.perfil_nutricional?.objetivo ?: "Sin definir")
 
                                 DatoItem(titulo = "Email", valor = usuario?.email ?: "")
@@ -201,7 +192,7 @@ fun PerfilScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Botón Guardar (Solo aparece al editar)
+                // Botón Guardar
                 if (isEditing) {
                     Button(
                         onClick = {
@@ -233,7 +224,6 @@ fun PerfilScreen(
     }
 }
 
-// Componente auxiliar para mostrar los datos bonitos en modo lectura
 @Composable
 fun DatoItem(titulo: String, valor: String) {
     Column {

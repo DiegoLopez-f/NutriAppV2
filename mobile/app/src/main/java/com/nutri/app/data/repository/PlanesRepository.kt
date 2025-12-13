@@ -15,7 +15,7 @@ class PlanesRepository {
     private val api: ApiService = RetrofitClient.api
 
     /**
-     * C(R)UD - LEER todos los planes del usuario logueado (desde el backend)
+     * CRUD - LEER todos los planes del usuario logueado (desde el backend)
      */
     suspend fun obtenerPlanes(): List<Plan> {
         return try {
@@ -36,7 +36,7 @@ class PlanesRepository {
     }
 
     /**
-     * (C)RUD - CREAR un nuevo plan para el usuario logueado
+     * CRUD - CREAR un nuevo plan para el usuario logueado
      **/
     suspend fun crearPlan(
         pacienteId: String,
@@ -76,13 +76,12 @@ class PlanesRepository {
             api.crearPlan(payload)
         } catch (e: Exception) {
             e.printStackTrace()
-            // Re-lanzar la excepción para que el ViewModel la atrape
             throw e
         }
     }
 
     /**
-     * CRU(D) - ELIMINAR un plan
+     * CRUD - ELIMINAR un plan
      */
     suspend fun eliminarPlan(planId: String) {
         try {

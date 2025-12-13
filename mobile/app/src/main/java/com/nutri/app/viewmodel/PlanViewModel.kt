@@ -41,16 +41,12 @@ class PlanViewModel(private val repository: PlanesRepository = PlanesRepository(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                // 1. Primero averiguamos quién es el usuario
                 val usuario = repository.obtenerUsuario()
-
-                // Si tienes la clase RolUsuario creada en el paso anterior usa: RolUsuario.NUTRICIONISTA
-                // Si no, usa directamente el 1.
                 _isNutricionista.value = (usuario?.tipo == 1)
 
                 Log.d("PlanViewModel", "Usuario tipo: ${usuario?.tipo}, esNutri: ${_isNutricionista.value}")
 
-                // 2. Cargamos los planes
+                // Cargar los planes
                 _planes.value = repository.obtenerPlanes()
                 _errorMessage.value = null
 
@@ -69,10 +65,10 @@ class PlanViewModel(private val repository: PlanesRepository = PlanesRepository(
             _isLoading.value = true
             _errorMessage.value = null
             try {
-                // Intentar encontrarlo en la lista
+                // Buscar en la lista
                 var plan = _planes.value.find { it.id == planId }
 
-                // Si no está, significa que _planes está vacío
+                // Si no está, significa que planes está vacío
                 if (plan == null) {
                     Log.d("PlanViewModel", "Lista de planes vacía, cargando de nuevo...")
                     val planesList = repository.obtenerPlanes()
@@ -125,7 +121,7 @@ class PlanViewModel(private val repository: PlanesRepository = PlanesRepository(
     }
 
     /**
-     * (C)RUD - CREAR Plan (Versión COMPLEJA)
+     * CRUD - CREAR Plan
      */
     fun crearPlanCompleto(
         nombrePlan: String,
@@ -171,7 +167,7 @@ class PlanViewModel(private val repository: PlanesRepository = PlanesRepository(
     }
 
     /**
-     * CRU(D) - ELIMINAR Plan
+     * CRUD - ELIMINAR Plan
      */
     fun eliminarPlan(planId: String) {
         viewModelScope.launch {

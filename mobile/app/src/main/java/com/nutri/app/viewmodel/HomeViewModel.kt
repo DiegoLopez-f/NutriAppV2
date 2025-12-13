@@ -15,7 +15,7 @@ class HomeViewModel(private val repository: HomeRepository = HomeRepository()) :
     private val _usuario = MutableStateFlow<Usuario?>(null)
     val usuario: StateFlow<Usuario?> = _usuario
 
-    // Estado: Plan Activo (Solo para Pacientes)
+    // Estado Plan Activo (Solo para Pacientes)
     private val _planActivo = MutableStateFlow<Plan?>(null)
     val planActivo: StateFlow<Plan?> = _planActivo
 
@@ -38,11 +38,11 @@ class HomeViewModel(private val repository: HomeRepository = HomeRepository()) :
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                // 1. Cargar Usuario (Perfil propio)
+                // Cargar Usuario
                 val user = repository.obtenerUsuario()
                 _usuario.value = user
 
-                // 2. Lógica según el Rol
+                // Lógica según el Rol
                 if (user != null) {
                     if (user.tipo == 1) {
                         // --- ES NUTRICIONISTA: Cargar lista de pacientes ---

@@ -21,7 +21,6 @@ class HomeRepository {
     suspend fun obtenerPlanActivo(): Plan? {
         return try {
             val planes = api.getMisPlanes()
-            // Ordenamos por fecha (si existe) y tomamos el primero, o simplemente el primero de la lista
             planes.firstOrNull()
         } catch (e: Exception) {
             e.printStackTrace()

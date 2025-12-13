@@ -10,7 +10,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.google.firebase.auth.FirebaseAuth
-// Importaciones necesarias para la llamada a la API
 import kotlinx.coroutines.launch
 import com.nutri.app.data.RetrofitClient
 import com.nutri.app.data.model.RegistroUsuarioPayload

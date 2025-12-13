@@ -40,9 +40,6 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-            // NOTA: Quitamos el padding global (24.dp) aquí para que el dashboard
-            // de nutricionista pueda usar el ancho completo si lo necesita.
-            // Se lo agregamos internamente a cada Dashboard.
         ) {
             when {
                 isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -57,14 +54,12 @@ fun HomeScreen(
                     // --- LÓGICA DE ROLES ---
                     if (usuario!!.tipo == 1) {
                         // VISTA DE NUTRICIONISTA
-                        // (Asegúrate de haber creado el archivo DashboardNutricionista.kt en el Paso 4)
                         DashboardNutricionista(
                             usuario = usuario!!,
                             pacientes = pacientes,
                             busqueda = busqueda,
                             onBusquedaChange = { viewModel.setBusqueda(it) },
                             onVerDetallePaciente = { uid ->
-                                // Aquí podrías navegar al detalle del paciente
                             }
                         )
                     } else {
@@ -81,8 +76,7 @@ fun HomeScreen(
     }
 }
 
-// --- COMPONENTE EXTRAÍDO: VISTA DEL PACIENTE ---
-// (Este es el código que tenías antes, encapsulado para mantener el orden)
+// --- VISTA DEL PACIENTE ---
 @Composable
 fun DashboardPaciente(
     usuario: Usuario,
@@ -142,7 +136,7 @@ fun DashboardPaciente(
     }
 }
 
-// --- COMPONENTES VISUALES DEL PLAN (Sin cambios) ---
+// --- COMPONENTES VISUALES DEL PLAN ---
 
 @Composable
 fun PlanActivoCard(plan: Plan) {

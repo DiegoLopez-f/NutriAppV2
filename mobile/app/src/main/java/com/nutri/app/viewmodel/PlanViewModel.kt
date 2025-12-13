@@ -126,8 +126,6 @@ class PlanViewModel(private val repository: PlanesRepository = PlanesRepository(
     fun cargarPacientes() {
         viewModelScope.launch {
             try {
-                // Eliminamos la comprobación if (_isNutricionista.value)
-                // para asegurar que intente cargar siempre que se llame.
                 val listaPacientes = repository.obtenerPacientes()
                 _pacientes.value = listaPacientes
                 Log.d("PlanViewModel", "Pacientes cargados: ${listaPacientes.size}")
@@ -141,7 +139,7 @@ class PlanViewModel(private val repository: PlanesRepository = PlanesRepository(
      * CRUD - CREAR Plan
      */
     fun crearPlanCompleto(
-        pacienteIdSeleccionado: String?, // <--- NUEVO PARÁMETRO
+        pacienteIdSeleccionado: String?,
         nombrePlan: String,
         tipoPlan: String,
         descripcionPlan: String,
@@ -162,7 +160,7 @@ class PlanViewModel(private val repository: PlanesRepository = PlanesRepository(
                 }
 
                 repository.crearPlan(
-                    targetId, // <--- USAMOS EL ID DECIDIDO
+                    targetId,
                     nombrePlan,
                     tipoPlan,
                     descripcionPlan,

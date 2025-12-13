@@ -2,7 +2,7 @@
 
 import { firestore } from 'firebase-admin';
 
-// Tu Alimento maestro, tal como lo definiste
+// Alimento maestro
 export interface Alimento {
     id: string;
     nombre: string;
@@ -12,7 +12,7 @@ export interface Alimento {
     calorias: number;
 }
 
-// Interfaz para el 'req.body' que esperamos del frontend
+// Interfaz para el 'req.body' del frontend
 export interface PlanPayload {
     nombre: string;
     tipo: 'Volumen' | 'Recomposición';
@@ -20,30 +20,28 @@ export interface PlanPayload {
 }
 
 export interface ComidaPayload {
-    nombre: string; // 'Desayuno', 'Almuerzo', etc.
-    // Tu frontend envía esto
+    nombre: string;
+    // El frontend envía esto
     alimentos: Array<{
-        refAlimento: string; // 'pechuga_pollo'
-        cantidad: string;    // '100g'
+        refAlimento: string; // id alimento
+        cantidad: string;
     }>;
 }
 
-// 1. Un "parser" numérico robusto (como el tuyo)
+// "parser" numérico
 const parseNumber = (value: any): number => {
     const num = parseFloat(value);
     return isNaN(num) || num === null || value === undefined ? 0 : num;
 };
 
-// 2. Un "parser" para la cantidad (ej: "150g" -> 150)
+// "parser" para la cantidad
 const parseCantidad = (cantidadStr: string): number => {
     return parseNumber(cantidadStr.replace(/[^0-9.]/g, ''));
 };
 
-/**
- * Esta es la función CEREBRO de tu backend.
- * Recalcula todos los macros de un plan basándose en los datos de Firestore.
- * Es la versión de backend de tu 'calcularTotales' y 'calcularMacrosComida'.
- */
+
+ // Recalcula todos los macros de un plan basándose en los datos de Firestore
+
 export async function calcularMacrosPlan(
     db: firestore.Firestore,
     comidasPayload: ComidaPayload[]
@@ -51,7 +49,7 @@ export async function calcularMacrosPlan(
     const todasLasComidas = [];
     let totalesDiarios = { kcal: 0, proteinas: 0, grasas: 0, carbohidratos: 0 };
 
-    // 1. Obtener todos los IDs de alimentos únicos para una sola consulta a la BD
+    // Obtener todos los ID de alimentos únicos para una sola consulta a la BD
     const alimentoIds = new Set<string>();
     comidasPayload.forEach(comida => {
         comida.alimentos.forEach(alimento => {
@@ -63,14 +61,14 @@ export async function calcularMacrosPlan(
         return { comidasParaGuardar: [], totalesDiarios };
     }
 
-    // 2. Hacer UNA consulta a Firestore con todos los IDs
+    // Hacer una sola consulta a Firestore con todos los ID
     const alimentosMap = new Map<string, Alimento>();
     const alimentosRef = db.collection('alimentos');
     const snapshot = await alimentosRef.where(firestore.FieldPath.documentId(), 'in', Array.from(alimentoIds)).get();
 
     snapshot.forEach(doc => {
         const data = doc.data();
-        // Limpiamos los datos de la BD (igual que en tu frontend)
+        // Limpiar los datos de la BD
         const prot = parseNumber(data.proteina || data.proteinas);
         const carb = parseNumber(data.carbohidratos);
         const fat = parseNumber(data.grasas);
@@ -87,7 +85,7 @@ export async function calcularMacrosPlan(
         });
     });
 
-    // 3. Iterar y calcular
+    // Iterar y calcular
     for (const comida of comidasPayload) {
         let macrosComida = { kcal: 0, proteinas: 0, grasas: 0, carbohidratos: 0 };
 
@@ -114,8 +112,8 @@ export async function calcularMacrosPlan(
         // Añadimos al array de comidas (esto es lo que irá a la BD)
         todasLasComidas.push({
             nombre: comida.nombre,
-            descripcion: '', // Puedes añadir esto en el frontend si quieres
-            alimentos: comida.alimentos, // Guardamos la referencia cruda
+            descripcion: '',
+            alimentos: comida.alimentos, // referencia directa
             macros: macrosComida, // Guardamos los macros calculados y verificados
         });
     }

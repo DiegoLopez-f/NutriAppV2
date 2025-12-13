@@ -20,7 +20,7 @@ import retrofit2.http.PUT
 import retrofit2.http.Path
 
 // IP local para conectar al backend
-private const val BASE_URL = "http://10.0.2.2:3000/"
+private const val BASE_URL = "http://192.168.1.121:3000/"
 // Interceptor para añadir el token a las solicitudes
 class AuthInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
